@@ -1,0 +1,88 @@
+#spring:
+#  application:
+#    name: SecondHandMarket
+spring:
+  profiles:
+    active: prod   # 개발 중엔 dev, 배포 시 prod로 변경
+
+---
+# 개발 환경 (H2)
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+  datasource:
+    url: jdbc:mysql://localhost:3307/secondhandmarket?allowPublicKeyRetrieval=true&useSSL=false&characterEncoding=UTF-8&serverTimezone=Asia/Seoul
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: ${DB_USERNAME}    # 환경변수 설정 필요
+    password: ${DB_PASSWORD}    # 환경변수 설정 필요
+
+  h2:
+    console:
+      enabled: false      # localhost:8080/h2-console 접근 가능
+      # path: /h2-console
+
+  jpa:
+    # defer-datasource-initialization: true # 추가: Hibernate 이후에 SQL 실행
+    hibernate:
+      ddl-auto: update       # 첫 실행 시 테이블 자동 생성
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+        dialect: org.hibernate.dialect.MySQLDialect
+        # check_nullability: true
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME}    # 환경변수로 관리
+    password: ${MAIL_PASSWORD}    # 앱 비밀번호 16자리
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+
+  sql:
+    init:
+      mode: never    # 항상 data.sql 실행
+
+
+jwt:
+  secret: ${JWT_SECRET}  # 256bit 이상
+  access-token-expiration: 900000    # 900000        # 15분 (ms)
+  refresh-token-expiration: 604800000    # 7일 (ms)
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha        # 태그 알파벳 순 정렬
+    operations-sorter: alpha  # API 알파벳 순 정렬
+  api-docs:
+    path: /v3/api-docs
+
+# prod 프로필에 추가
+cloud:
+  aws:
+    s3:
+      bucket: secondhand-market-images
+    region:
+      static: ap-northeast-2
+    credentials:
+      access-key: ${AWS_ACCESS_KEY}     # 환경변수 설정 필요
+      secret-key: ${AWS_SECRET_KEY}     # 환경변수 설정 필요
+    stack:
+      auto: false   # CloudFormation 스택 자동 감지 비활성화 (로컬 실행 시 필수)
+
+
+toss payments:
+  secret-key: ${TOSS_SECRET_KEY}        # 환경변수 설정 필요

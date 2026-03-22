@@ -1,0 +1,71 @@
+#spring:
+#  application:
+#    name: SecondHandMarket
+spring:
+  profiles:
+    active: dev   # 개발 중엔 dev, 배포 시 prod로 변경
+
+---
+# 개발 환경 (H2)
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+  datasource:
+    url: jdbc:h2:mem:marketdb;MODE=MySQL   # MySQL 문법 호환 모드
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  h2:
+    console:
+      enabled: true      # localhost:8080/h2-console 접근 가능
+      path: /h2-console
+
+  jpa:
+    defer-datasource-initialization: true # 추가: Hibernate 이후에 SQL 실행
+    hibernate:
+      ddl-auto: create-drop   # 실행 시 테이블 자동 생성, 종료 시 삭제
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.H2Dialect
+        check_nullability: true
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME}    # 환경변수로 관리
+    password: ${MAIL_PASSWORD}    # 앱 비밀번호 16자리
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+
+  sql:
+    init:
+      mode: always    # 항상 data.sql 실행
+
+
+jwt:
+  secret: "SecondHandMarketSecretKeyForJWTTokenGenerationMustBe256Bits!!"  # 256bit 이상
+  access-token-expiration: 604800000    # 900000        # 15분 (ms)
+  refresh-token-expiration: 604800000    # 7일 (ms)
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha        # 태그 알파벳 순 정렬
+    operations-sorter: alpha  # API 알파벳 순 정렬
+  api-docs:
+    path: /v3/api-docs
