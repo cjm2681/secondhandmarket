@@ -60,6 +60,7 @@ public enum ErrorCode {
     CANNOT_BUY_OWN_PRODUCT(HttpStatus.BAD_REQUEST, "본인 상품은 구매할 수 없습니다"),
     ALREADY_PURCHASED(HttpStatus.BAD_REQUEST, "이미 구매한 상품이거나 취소한 상품입니다"),
     PAYMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "결제 정보가 존재하지 않습니다"),
+    PRODUCT_CONFLICT(HttpStatus.CONFLICT, "다른 사용자가 먼저 구매했습니다. 다시 시도해주세요"),
 
 
     // 채팅

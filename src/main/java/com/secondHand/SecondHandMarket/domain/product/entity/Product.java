@@ -20,6 +20,9 @@ public class Product extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Version
+    private Long version;
+
     @ManyToOne(fetch = FetchType.LAZY)  // 지연 로딩 - 필요할 때만 user 조회
     @JoinColumn(name = "seller_id", nullable = false)
     private User seller;

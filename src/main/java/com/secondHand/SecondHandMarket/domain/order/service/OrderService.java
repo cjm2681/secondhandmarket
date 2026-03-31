@@ -16,7 +16,9 @@ import com.secondHand.SecondHandMarket.domain.user.Repository.UserRepository;
 import com.secondHand.SecondHandMarket.domain.user.entity.User;
 import com.secondHand.SecondHandMarket.global.exception.CustomException;
 import com.secondHand.SecondHandMarket.global.exception.ErrorCode;
+import jakarta.persistence.OptimisticLockException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -197,7 +199,7 @@ public class OrderService {
                 .product(product)
                 .totalPrice(product.getPrice())
                 .status(OrderStatus.READY)
-                .tossOrderId(tossOrderId)   // ✅ 추가
+                .tossOrderId(tossOrderId)   //  추가
                 .build();
         orderRepository.save(order);
 
@@ -209,6 +211,14 @@ public class OrderService {
                 .status(PaymentStatus.READY)
                 .build();
         paymentRepository.save(payment);
+
+        //  상품 상태 RESERVED로 변경 — 여기서 @Version 충돌 발생 가능
+        try {
+            product.updateStatus(ProductStatus.RESERVED);
+        } catch (OptimisticLockException | ObjectOptimisticLockingFailureException e) {
+            // 동시에 다른 사람이 먼저 RESERVED로 바꿨을 때
+            throw new CustomException(ErrorCode.PRODUCT_CONFLICT);
+        }
 
         return OrderResponse.from(order, payment);
     }
