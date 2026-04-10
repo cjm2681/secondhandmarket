@@ -99,14 +99,7 @@ public class ProductController {
                 productService.updateStatus(productId, userId, request)));
     }
 
-    // ⚠️ 성능 테스트용 임시 API - 테스트 후 삭제
-    @PostMapping("/{productId}/test-view-data")
-    public ResponseEntity<ApiResponse<String>> insertTestViewData(
-            @PathVariable("productId") Long productId,
-            @RequestParam(defaultValue = "1000") int count) {
-        productService.insertTestViewData(productId, count);
-        return ResponseEntity.ok(ApiResponse.ok(count + "건 삽입 완료", null));
-    }
+
 
 
 }

@@ -4,17 +4,14 @@ import com.secondHand.SecondHandMarket.domain.product.dto.*;
 import com.secondHand.SecondHandMarket.domain.product.entity.Product;
 import com.secondHand.SecondHandMarket.domain.product.entity.ProductImage;
 import com.secondHand.SecondHandMarket.domain.product.entity.ProductStatus;
-import com.secondHand.SecondHandMarket.domain.product.entity.ViewHistory;
 import com.secondHand.SecondHandMarket.domain.product.repository.ProductImageRepository;
 import com.secondHand.SecondHandMarket.domain.product.repository.ProductRepository;
-import com.secondHand.SecondHandMarket.domain.product.repository.ViewHistoryRepository;
 import com.secondHand.SecondHandMarket.domain.user.Repository.UserRepository;
 import com.secondHand.SecondHandMarket.domain.user.entity.User;
 import com.secondHand.SecondHandMarket.global.exception.CustomException;
 import com.secondHand.SecondHandMarket.global.exception.ErrorCode;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -32,7 +29,6 @@ import java.util.concurrent.TimeUnit;
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
-@Slf4j
 public class ProductService {
 
     private final ProductRepository productRepository;
@@ -40,9 +36,7 @@ public class ProductService {
     private final UserRepository userRepository;
     private final ImageService imageService;
 
-    private final ViewHistoryRepository viewHistoryRepository;
-
-//    private final RedisTemplate<String, String> redisTemplate;
+    private final RedisTemplate<String, String> redisTemplate;
 
     // 판매글 등록
     @Transactional
@@ -88,35 +82,12 @@ public class ProductService {
                 .orElseThrow(() -> new CustomException(ErrorCode.PRODUCT_NOT_FOUND));
 
         String viewer = getViewerIdentifier(request);
+        String key = "VIEW:PRODUCT" + productId + ":" + viewer;
 
-        long start = System.currentTimeMillis();  // ← 측정 시작
-
-        // ✅ DB 이력 테이블 방식 (현재 테스트 중)
-        boolean alreadyViewed = viewHistoryRepository
-                .existsByTargetTypeAndTargetIdAndViewer("PRODUCT", productId, viewer);
-
-        if (!alreadyViewed) {
-            viewHistoryRepository.save(ViewHistory.builder()
-                    .targetType("PRODUCT")
-                    .targetId(productId)
-                    .viewer(viewer)
-                    .build());
+        if (!Boolean.TRUE.equals(redisTemplate.hasKey(key))) {
             product.increaseViewCount();
-
-
-
+            redisTemplate.opsForValue().set(key, "1", 1L, TimeUnit.HOURS);
         }
-
-        long end = System.currentTimeMillis();  // ← 측정 끝
-        log.info("[조회수 처리 시간 - DB방식] 데이터수: 처리시간: {}ms",
-                end - start);  // ← 추가
-
-//        String key = "VIEW:PRODUCT" + productId + ":" + viewer;
-//
-//        if (!Boolean.TRUE.equals(redisTemplate.hasKey(key))) {
-//            product.increaseViewCount();
-//            redisTemplate.opsForValue().set(key, "1", 1L, TimeUnit.HOURS);
-//        }
 
         return ProductResponse.from(product);
     }
@@ -221,17 +192,7 @@ public class ProductService {
     }
 
 
-    // ⚠️ 성능 테스트용 임시 메서드 - 테스트 후 삭제
-    @Transactional
-    public void insertTestViewData(Long productId, int count) {
-        for (int i = 1; i <= count; i++) {
-            viewHistoryRepository.save(ViewHistory.builder()
-                    .targetType("PRODUCT")
-                    .targetId(productId)
-                    .viewer("USER:TEST:" + i)
-                    .build());
-        }
-    }
+
 
 
 

@@ -51,7 +51,6 @@ public class SecurityConfig {
                             "/swagger-ui.html",
                             "/v3/api-docs/**"
                     ).permitAll()
-                            .requestMatchers("/api/products/*/test-view-data").permitAll()
                     .anyRequest().authenticated()                       // 나머지는 로그인 필요
                     //.anyRequest().permitAll()  // 개발 초기엔 전부 허용
             )
