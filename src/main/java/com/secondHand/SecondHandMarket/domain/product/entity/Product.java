@@ -23,8 +23,10 @@ public class Product extends BaseEntity {
     // 동시 결제 Race Condition 방지용
     // 비관적 락은 토스 API 호출 중 락 점유 시간이 길어짐
     // 낙관적 락으로 변경 - 커밋 시점에만 충돌 체크
+    // 수정 (초기값 0 보장)
     @Version
-    private Long version;
+    @Builder.Default
+    private Long version = 0L;
 
     @ManyToOne(fetch = FetchType.LAZY)  // 지연 로딩 - 필요할 때만 user 조회
     @JoinColumn(name = "seller_id", nullable = false)
