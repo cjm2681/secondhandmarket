@@ -20,6 +20,9 @@ public class Product extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // 동시 결제 Race Condition 방지용
+    // 비관적 락은 토스 API 호출 중 락 점유 시간이 길어짐
+    // 낙관적 락으로 변경 - 커밋 시점에만 충돌 체크
     @Version
     private Long version;
 
