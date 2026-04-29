@@ -12,6 +12,7 @@ import com.secondHand.SecondHandMarket.global.exception.CustomException;
 import com.secondHand.SecondHandMarket.global.exception.ErrorCode;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -29,6 +30,7 @@ import java.util.concurrent.TimeUnit;
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
+@Slf4j
 public class ProductService {
 
     private final ProductRepository productRepository;
@@ -82,11 +84,18 @@ public class ProductService {
                 .orElseThrow(() -> new CustomException(ErrorCode.PRODUCT_NOT_FOUND));
 
         String viewer = getViewerIdentifier(request);
+
+        long start = System.currentTimeMillis();
+
         String key = "VIEW:PRODUCT" + productId + ":" + viewer;
 
         if (!Boolean.TRUE.equals(redisTemplate.hasKey(key))) {
             product.increaseViewCount();
             redisTemplate.opsForValue().set(key, "1", 1L, TimeUnit.HOURS);
+
+            long end = System.currentTimeMillis();
+            log.info("[조회수 처리 시간 - Redis방식] 처리시간: {}ms", end - start);
+
         }
 
         return ProductResponse.from(product);

@@ -28,19 +28,26 @@ public class JwtFilter extends OncePerRequestFilter {  // 요청당 한 번만 �
 
         String token = resolveToken(request);
 
-        if (token != null && jwtProvider.validateToken(token)) {
-            Long userId = jwtProvider.getUserId(token);
-            String role = jwtProvider.getRole(token);
+        // try-catch로 감싸서 만료/invalid 토큰은 그냥 통과
+        if (token != null) {
+            try {
+                if (jwtProvider.validateToken(token)) {
+                    Long userId = jwtProvider.getUserId(token);
+                    String role = jwtProvider.getRole(token);
 
-            // Spring Security가 인식할 수 있는 Authentication 객체 생성       신분증 생성 같은 느낌
-            UsernamePasswordAuthenticationToken authentication =
-                    new UsernamePasswordAuthenticationToken(
-                            userId,  // principal (컨트롤러에서 @AuthenticationPrincipal로 꺼냄)
-                            null,
-                            List.of(new SimpleGrantedAuthority("ROLE_" + role))
-                    );
-
-            SecurityContextHolder.getContext().setAuthentication(authentication);
+                    UsernamePasswordAuthenticationToken authentication =
+                            new UsernamePasswordAuthenticationToken(
+                                    userId,
+                                    null,
+                                    List.of(new SimpleGrantedAuthority("ROLE_" + role))
+                            );
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                }
+            } catch (Exception e) {
+                // 만료/유효하지 않은 토큰 → 인증 정보 설정 안 함
+                // → Spring Security가 401로 처리
+                SecurityContextHolder.clearContext();
+            }
         }
 
         filterChain.doFilter(request, response);
