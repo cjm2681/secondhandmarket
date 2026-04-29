@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 public class OrderResponse {
 
     private Long orderId;
-    private String tossOrderId;    // ✅ 추가
+    private String tossOrderId;    // 추가
     private Long productId;
     private String productTitle;
     private int price;
@@ -31,7 +31,7 @@ public class OrderResponse {
     public static OrderResponse from(Orders order, Payment payment) {
         return OrderResponse.builder()
                 .orderId(order.getId())
-                .tossOrderId(order.getTossOrderId())   // ✅ 추가
+                .tossOrderId(order.getTossOrderId())   // 추가
                 .productId(order.getProduct().getId())
                 .productTitle(order.getProduct().getTitle())
                 .price(order.getTotalPrice())

@@ -35,17 +35,20 @@ public class CommentService {
 
         Comment parent = null;
 
+        // parentId가 있으면 대댓글 처리
         if (request.getParentId() != null) {
             parent = commentRepository.findById(request.getParentId())
                     .orElseThrow(() -> new CustomException(ErrorCode.PARENT_COMMENT_NOT_FOUND));
 
-            //  부모 댓글이 현재 게시글 소속인지 확인
+            // 보안 검증: 부모 댓글이 현재 게시글 소속인지 확인
+            // URL의 boardId와 부모 댓글의 board.id가 다르면 비정상 요청
             if (!parent.getBoard().getId().equals(boardId)) {
                 throw new CustomException(ErrorCode.PARENT_COMMENT_NOT_FOUND);
             }
 
 
-            // 대댓글에 또 댓글 금지 (2depth까지만 허용)
+            // 2depth 제한: 대댓글에 또 대댓글 금지
+            // parent.getParent() != null → 이미 대댓글인 댓글에 또 달려는 시도
             if (parent.getParent() != null) {
                 throw new CustomException(ErrorCode.REPLY_DEPTH_EXCEEDED);
             }

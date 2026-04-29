@@ -25,6 +25,7 @@ public class EmailService {
     private final UserRepository userRepository;
 
     // 인증코드 발송
+    // 인증코드는 Redis에 5분 TTL로 저장 (DB 사용 안 하는 이유: 임시 데이터, 자동 만료 필요)
     public void sendVerificationEmail(String email) {
         String code = generateCode();
 
@@ -39,6 +40,8 @@ public class EmailService {
 
     // 인증코드 검증
     public void verifyCode(String email, String code) {
+
+        // Redis에서 저장된 코드 조회 (5분 만료 시 키 없음 → VERIFICATION_CODE_NOT_FOUND)
         String savedCode = emailVerificationRedisRepository.find(email)
                 .orElseThrow(() -> new CustomException(ErrorCode.VERIFICATION_CODE_NOT_FOUND));
 
@@ -47,15 +50,18 @@ public class EmailService {
         }
 
         // 검증 성공 시 Redis에서 삭제
-        emailVerificationRedisRepository.delete(email);
-        emailVerificationRedisRepository.saveVerified(email);  //  인증 완료 표시
+        emailVerificationRedisRepository.delete(email);      // 인증코드 키 삭제 (재사용 방지)
+        emailVerificationRedisRepository.saveVerified(email);  // 인증 완료 표시 (30분 TTL)
     }
 
-    // 6자리 랜덤 코드 생성
+    // 6자리 랜덤 숫자 코드 생성
+    // %06d: 6자리 0 패딩 → "000123" 형태
     private String generateCode() {
         return String.format("%06d", new Random().nextInt(1000000));
     }
 
+    // MimeMessage: HTML 형식 이메일 발송을 위해 사용
+    // SimpleMailMessage는 HTML 미지원 → 스타일 적용 불가
     private void send(String to, String subject, String content) {
         MimeMessage message = mailSender.createMimeMessage();
         try {

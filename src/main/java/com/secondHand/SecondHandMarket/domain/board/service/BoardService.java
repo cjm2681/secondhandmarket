@@ -62,7 +62,7 @@ public class BoardService {
                 .map(BoardListResponse::from);
     }
 
-    // 게시글 상세 조회
+    // 게시글 상세 조회 + 조회수 증가
     @Transactional
     public BoardResponse getDetail(Long boardId,
                                    HttpServletRequest request) {
@@ -71,10 +71,17 @@ public class BoardService {
 
 
         String viewer = getViewerIdentifier(request);
+
+        // Redis TTL 기반 중복 조회 방지
+        // 키 구조: "VIEW:BOARD:{boardId}:{userId or IP}"
+        // TTL = 1시간 → 1시간 후 키 자동 만료 → 동일 사용자도 재조회 가능
+        // 서버 메모리(세션) 방식 대신 Redis 사용 이유:
+        //   세션은 서버 메모리에 저장 → 서버 여러 대 환경에서 공유 불가
+        //   Redis는 서버 바깥의 공용 저장소 → 다중 서버 환경에서도 일관 동작
         String key = "VIEW:BOARD:" + boardId + ":" + viewer;
 
         if (!Boolean.TRUE.equals(redisTemplate.hasKey(key))) {
-            board.increaseViewCount();
+            board.increaseViewCount(); // Dirty Checking → 트랜잭션 커밋 시 자동 UPDATE
             redisTemplate.opsForValue().set(key, "1", 1L, TimeUnit.HOURS);
         }
         List<Comment> comments = commentRepository.findByBoardIdWithChildren(boardId);
@@ -82,7 +89,9 @@ public class BoardService {
     }
 
 
-    // 로그인 유저면 "USER:1", 비로그인이면 "IP:127.0.0.1" 반환
+    // 조회자 식별자 추출
+    // 로그인: "USER:{userId}" → userId 기반으로 정확한 식별
+    // 비로그인: "IP:{ip}" → IP 기반으로 어뷰징 방지
     private String getViewerIdentifier(HttpServletRequest request) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
@@ -92,6 +101,8 @@ public class BoardService {
             return "USER:" + userId;
         }
 
+        // X-Forwarded-For: 프록시/로드밸런서 환경에서 실제 클라이언트 IP 추출
+        // 없으면 직접 연결된 IP 사용
         String ip = request.getHeader("X-Forwarded-For");
         if (ip == null || ip.isBlank()) {
             ip = request.getRemoteAddr();

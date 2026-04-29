@@ -158,7 +158,11 @@ public class OrderService {
 
 
 
-    // 1단계: 주문 생성 (결제 전, READY 상태)
+    // 1단계: 주문 생성 (결제창 띄우기 전 단계)
+    // 결제 플로우: createReady() → 토스 결제창 → confirmPayment()
+    // 이 단계에서 DB에 주문을 미리 생성하는 이유:
+    //   결제 승인 시 서버에 저장된 가격과 비교 → 금액 위변조 방지
+    //   tossOrderId를 주문과 연결 → 결제 완료 후 주문 추적 가능
     @Transactional
     public OrderResponse createReady(Long buyerId, OrderCreateRequest request) {
 
@@ -180,7 +184,9 @@ public class OrderService {
         }
 
 
-        // ✅ READY 상태 이전 주문 있으면 Payment 먼저 삭제 후 Order 삭제
+        // 이전에 READY 상태로 중단된 주문이 있으면 Payment 먼저 삭제 후 Order 삭제
+        // 이유: 결제창 열었다가 취소하고 다시 시도하는 경우 중복 주문 방지
+        // Payment 먼저 삭제하는 이유: Orders → Payment FK 제약 조건 (부모 삭제 전 자식 삭제)
         orderRepository.findByBuyerIdAndProductIdAndStatus(
                         buyerId, product.getId(), OrderStatus.READY)
                 .ifPresent(oldOrder -> {
@@ -189,21 +195,28 @@ public class OrderService {
                     orderRepository.delete(oldOrder);
                 });
 
-        // ✅ 토스용 고유 주문번호 생성 (UUID 앞 8자 + timestamp)
+        // 토스용 고유 주문번호 생성 (UUID 앞 8자 + timestamp)
+        // DB auto-increment id를 쓰지 않는 이유:
+        //   DB 초기화·마이그레이션·서버 이전 시 id가 재사용되어 토스 서버와 충돌 발생
+        //   UUID(충돌 확률 극소) + timestamp(시간 고유성) 조합으로 전역 고유성 확보
         String tossOrderId = "ORDER-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase()
                 + "-" + System.currentTimeMillis();
+        // 예: ORDER-A3F9C2B1-1743320400000
 
         // READY 상태로 주문만 생성 (결제 전)
         Orders order = Orders.builder()
                 .buyer(buyer)
                 .product(product)
-                .totalPrice(product.getPrice())
+                .totalPrice(product.getPrice())     // 현재 시점 가격 스냅샷
+                                                     // 결제 승인 시 이 값과 비교 → 위변조 방지
+                                                    // (주문 생성 후 판매자가 가격 변경해도 영향 없음)
                 .status(OrderStatus.READY)
-                .tossOrderId(tossOrderId)   //  추가
+                .tossOrderId(tossOrderId)
                 .build();
         orderRepository.save(order);
 
-        // Payment도 READY로 생성
+        // Payment도 READY로 먼저 생성
+        // paymentKey는 토스 승인 후 채워짐 (confirmPayment에서 payment.confirm(paymentKey) 호출)
         Payment payment = Payment.builder()
                 .order(order)
                 .paymentKey("")       // 결제 완료 후 채워짐
@@ -227,24 +240,32 @@ public class OrderService {
 
 
     // 2단계: 토스 결제 승인 + 주문 완료
+    // 클라이언트가 토스 결제창에서 결제 완료 후 받은 paymentKey, orderId, amount를 전달
     @Transactional
     public OrderResponse confirmPayment(Long buyerId, TossPaymentRequest request) {
 
-        // ✅ tossOrderId로 주문 조회
+        // tossOrderId로 1단계에서 생성해둔 주문 조회
         Orders order = orderRepository.findByTossOrderId(request.getOrderId())
                 .orElseThrow(() -> new CustomException(ErrorCode.ORDER_NOT_FOUND));
 
-        // 본인 주문인지 확인
+        // 본인 주문인지 확인 (다른 사람 주문 가로채기 방지)
         if (!order.getBuyer().getId().equals(buyerId)) {
             throw new CustomException(ErrorCode.ORDER_FORBIDDEN);
         }
 
-        // 금액 위변조 방지 검증
+        // 금액 위변조 방지 핵심 로직
+        // 클라이언트에서 amount를 조작해서 전달해도
+        // DB에 저장된 실제 상품 가격(totalPrice)과 비교하여 차단
+        // 클라이언트 사이드 검증은 개발자 도구로 우회 가능 → 서버 사이드 검증 필수
         if (order.getTotalPrice() != request.getAmount().intValue()) {
             throw new CustomException(ErrorCode.PAYMENT_AMOUNT_MISMATCH);
         }
 
-        // 토스 서버에 최종 승인 요청
+        // 토스 서버에 최종 승인 요청 (이 시점에 실제 돈이 빠져나감)
+        //    트랜잭션 불일치 위험 지점:
+        //    토스 승인 성공 후 아래 DB 업데이트가 실패하면 롤백되지만
+        //    토스 서버의 결제는 이미 완료된 상태 → 돈은 빠졌는데 DB는 미결제
+        //    해결 방향: CONFIRMING 중간 상태 + 배치 스케줄러 + 웹훅 조합 필요
         tossPaymentService.confirm(
                 request.getPaymentKey(),
                 request.getOrderId(),
@@ -255,8 +276,12 @@ public class OrderService {
         Payment payment = paymentRepository.findByOrderId(order.getId())
                 .orElseThrow(() -> new CustomException(ErrorCode.PAYMENT_NOT_FOUND));
 
+        // paymentKey 저장 + 상태 PAID로 변경 (Dirty Checking → 자동 UPDATE)
         payment.confirm(request.getPaymentKey());  // paymentKey 저장 + PAID
         order.paid();
+
+        // 상품 상태 SOLD로 변경 → 다른 사람이 구매 불가
+        // Dirty Checking으로 자동 UPDATE (별도 save() 불필요)
         order.getProduct().updateStatus(ProductStatus.SOLD);
 
         return OrderResponse.from(order, payment);

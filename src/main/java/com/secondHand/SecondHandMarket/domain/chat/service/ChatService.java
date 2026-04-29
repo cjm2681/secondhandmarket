@@ -59,7 +59,15 @@ public class ChatService {
         return ChatRoomResponse.from(room, "", unreadCount);
     }
 
-    // 메시지 전송 (STOMP 핸들러에서 호출)
+    // 메시지 전송 흐름:
+    // 1. 채팅방 접근 권한 확인 (구매자 또는 판매자만 가능)
+    // 2. DB에 메시지 저장 (영속성 보장)
+    // 3. Redis Pub/Sub으로 발행 → ChatSubscriber → STOMP 브로드캐스트
+    //
+    // Redis를 거치는 이유:
+    //   서버가 여러 대일 때, 서버A에 연결된 사용자와 서버B에 연결된 사용자가
+    //   같은 채팅방에 있을 수 있음
+    //   Redis Pub/Sub → 모든 서버가 같은 채널 구독 → 어떤 서버에 연결해도 메시지 수신
     @Transactional
     public void sendMessage(Long roomId, Long senderId, String message) {
         ChatRoom room = chatRoomRepository.findById(roomId)
@@ -75,7 +83,9 @@ public class ChatService {
         User sender = userRepository.findById(senderId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        // DB 저장
+        // DB 저장 먼저 → 메시지 유실 방지
+        // BaseEntity의 createdAt이 서버 타임스탬프로 자동 설정됨
+        // → 채팅 내역 조회 시 createdAt ASC 정렬로 순서 보장
         ChatMessage chatMessage = ChatMessage.builder()
                 .room(room)
                 .sender(sender)
@@ -83,7 +93,7 @@ public class ChatService {
                 .build();
         chatMessageRepository.save(chatMessage);
 
-        // Redis Pub/Sub으로 발행
+        // Redis Pub/Sub으로 발행 → 실시간 전달
         chatPublisher.publish(ChatMessageResponse.from(chatMessage));
     }
 

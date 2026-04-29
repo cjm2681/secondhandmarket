@@ -23,7 +23,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
+@Transactional(readOnly = true) // 기본적으로 읽기 전용 트랜잭션
+                                // SELECT 쿼리에서 불필요한 Dirty Checking 스킵 → 성능 최적화
+                                // 쓰기가 필요한 메서드에만 @Transactional 별도 선언
 public class AdminService {
 
     private final UserRepository userRepository;
@@ -57,6 +59,7 @@ public class AdminService {
         }
 
         // 현재 상태 보고 토글
+        // User 엔티티의 ban(), activate() 메서드가 상태 변경 → Dirty Checking으로 자동 UPDATE
         if (user.getStatus() == UserStatus.ACTIVE) {
             user.ban();
         } else {
@@ -67,12 +70,14 @@ public class AdminService {
     }
 
     // 판매글 삭제 (소프트 삭제)
+    // DB에서 실제 삭제하지 않고 is_deleted = true 로 표시만 함
+    // 이유: 주문/결제 이력이 연결되어 있어 실제 삭제 시 데이터 정합성 문제 발생 가능
     @Transactional
     public void deleteProduct(Long productId) {
         Product product = productRepository.findById(productId)
                 .filter(p -> !p.isDeleted())
                 .orElseThrow(() -> new CustomException(ErrorCode.PRODUCT_NOT_FOUND));
-        product.delete();
+        product.delete();   // is_deleted = true → Dirty Checking으로 자동 UPDATE
     }
 
     // 게시글 삭제 (소프트 삭제)
@@ -91,9 +96,14 @@ public class AdminService {
                 .orElseThrow(() -> new CustomException(ErrorCode.COMMENT_NOT_FOUND));
 
         if (!comment.getChildren().isEmpty()) {
-            comment.delete();   // 대댓글 있으면 소프트 삭제
+            // 대댓글이 있는 부모 댓글 → 소프트 삭제
+            // 완전 삭제 시 대댓글의 맥락이 사라지는 UX 문제 방지
+            // 화면에는 "삭제된 댓글입니다."로 표시
+            comment.delete();
         } else {
-            commentRepository.delete(comment);  // 없으면 완전 삭제
+            // 대댓글 없는 댓글 → 완전 삭제
+            // 불필요한 데이터 누적 방지
+            commentRepository.delete(comment);
         }
     }
 }
