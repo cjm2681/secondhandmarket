@@ -60,9 +60,11 @@ public class JwtFilter extends OncePerRequestFilter {  // 요청당 한 번만 �
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                 }
             } catch (Exception e) {
-                // 만료/유효하지 않은 토큰 → 인증 정보 설정 안 함
-                // → Spring Security가 401로 처리
-                SecurityContextHolder.clearContext();
+                // 토큰 만료/유효하지 않음 → 401 직접 반환
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.setContentType("application/json;charset=UTF-8");
+                response.getWriter().write("{\"message\":\"토큰이 만료되었습니다\"}");
+                return;
             }
         }
         // 다음 필터로 요청 전달 (필터 체인 계속 진행)
