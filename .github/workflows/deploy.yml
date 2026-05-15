@@ -1,0 +1,24 @@
+name: Backend Deploy  # 워크플로우 이름
+
+on:
+  push:
+    branches: [ main ]  # main 브랜치에 push될 때 실행
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest  # GitHub 서버 환경 (우분투)
+
+    steps:
+      # 1. 서버에 SSH 접속해서 명령어 실행
+      - name: Deploy to server
+        uses: appleboy/ssh-action@v1.0.3  # SSH 접속해주는 외부 액션
+        with:
+          host: ${{ secrets.SERVER_HOST }}      # 시크릿에서 IP 읽어옴
+          username: ${{ secrets.SERVER_USER }}  # 시크릿에서 유저명 읽어옴
+          key: ${{ secrets.SSH_PRIVATE_KEY }}   # 시크릿에서 개인키 읽어옴
+          port: ${{ secrets.SERVER_PORT }}      # 시크릿에서 포트 읽어옴
+          script: |
+            cd ~/secondhandmarket/backend
+            git pull origin main
+            cd ~/secondhandmarket
+            docker compose up --build -d backend
