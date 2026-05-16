@@ -17,6 +17,7 @@ jobs:
           username: ${{ secrets.SERVER_USER }}  # 시크릿에서 유저명 읽어옴
           key: ${{ secrets.SSH_PRIVATE_KEY }}   # 시크릿에서 개인키 읽어옴
           port: ${{ secrets.SERVER_PORT }}      # 시크릿에서 포트 읽어옴
+          command_timeout: 30m
           script: |
             cd ~/secondhandmarket/backend
             git pull origin main
