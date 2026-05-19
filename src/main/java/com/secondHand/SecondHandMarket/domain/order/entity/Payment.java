@@ -29,7 +29,7 @@ public class Payment extends BaseEntity {
     private int amount;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "VARCHAR(20)")
     @Builder.Default
     private PaymentStatus status = PaymentStatus.READY;
 
@@ -51,6 +51,11 @@ public class Payment extends BaseEntity {
         this.paymentKey = paymentKey;
         this.status = PaymentStatus.PAID;
         this.paidAt = LocalDateTime.now();
+    }
+
+    // 토스 승인 요청 직전 상태 변경
+    public void confirming() {
+        this.status = PaymentStatus.CONFIRMING;
     }
 
 }

@@ -32,7 +32,7 @@ public class Orders extends BaseEntity {
     private int totalPrice;     // 구매 시점 가격 스냅샷
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "VARCHAR(20)")
     @Builder.Default
     private OrderStatus status = OrderStatus.READY;
 
@@ -52,4 +52,10 @@ public class Orders extends BaseEntity {
     public void paid() {
         this.status = OrderStatus.PAID;
     }
+
+    // 토스 승인 요청 직전 상태 변경
+    public void confirming() {
+        this.status = OrderStatus.CONFIRMING;
+    }
+
 }

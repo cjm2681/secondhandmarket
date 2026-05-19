@@ -77,6 +77,7 @@ public class SecurityConfig {
                     ).permitAll()
                     .anyRequest().authenticated()                       // 나머지는 로그인 필요
                     //.anyRequest().permitAll()  // 개발 초기엔 전부 허용
+                    .requestMatchers("/api/webhook/**").permitAll()
             )
                 // JwtFilter를 UsernamePasswordAuthenticationFilter 앞에 등록
                 // 이유: Spring Security 기본 필터(UsernamePasswordAuthenticationFilter)가

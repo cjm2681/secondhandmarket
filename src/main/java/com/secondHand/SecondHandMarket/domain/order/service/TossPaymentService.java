@@ -73,4 +73,39 @@ public class TossPaymentService {
             throw new CustomException(ErrorCode.PAYMENT_CONFIRM_FAILED);
         }
     }
+
+    // 토스 결제 상태 조회
+    public String getPaymentStatus(String tossOrderId) {
+        try {
+            String encodedKey = Base64.getEncoder()
+                    .encodeToString((secretKey + ":").getBytes(StandardCharsets.UTF_8));
+
+            HttpClient client = HttpClient.newHttpClient();
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(
+                            "https://api.tosspayments.com/v1/payments/orders/" + tossOrderId))
+                    .header("Authorization", "Basic " + encodedKey)
+                    .GET()
+                    .build();
+
+            HttpResponse<String> response = client.send(request,
+                    HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() == 200) {
+                // JSON에서 status 필드 파싱
+                String body = response.body();
+                int start = body.indexOf("\"status\":\"") + 10;
+                int end = body.indexOf("\"", start);
+                return body.substring(start, end);
+            }
+
+            return "UNKNOWN";
+
+        } catch (Exception e) {
+            log.error("토스 결제 상태 조회 실패: {}", e.getMessage());
+            return "UNKNOWN";
+        }
+    }
+
 }

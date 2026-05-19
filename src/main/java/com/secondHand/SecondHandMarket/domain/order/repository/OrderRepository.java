@@ -32,6 +32,15 @@ public interface OrderRepository extends JpaRepository<Orders, Long> {
         """)
     List<Orders> findBySellerId(@Param("sellerId") Long sellerId);
 
+    // CONFIRMING 상태인 주문 조회 (배치용)
+    @Query("""
+    SELECT o FROM Orders o
+    JOIN FETCH o.product
+    JOIN FETCH o.buyer
+    WHERE o.status = :status
+    """)
+    List<Orders> findByStatus(@Param("status") OrderStatus status);
+
     // 특정 상품 주문 여부 확인 (중복 구매 방지)
     boolean existsByBuyerIdAndProductId(Long buyerId, Long productId);
 

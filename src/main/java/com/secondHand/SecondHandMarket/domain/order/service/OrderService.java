@@ -37,6 +37,8 @@ public class OrderService {
 
     private final TossPaymentService tossPaymentService;
 
+    private final OrderStatusUpdater orderStatusUpdater;
+
     // 주문 + Mock 결제 생성 (트랜잭션 핵심)
     @Transactional
     public OrderResponse create(Long buyerId, OrderCreateRequest request) {
@@ -261,6 +263,14 @@ public class OrderService {
             throw new CustomException(ErrorCode.PAYMENT_AMOUNT_MISMATCH);
         }
 
+
+        // 승인 성공 → 상태 업데이트
+        Payment payment = paymentRepository.findByOrderId(order.getId())
+                .orElseThrow(() -> new CustomException(ErrorCode.PAYMENT_NOT_FOUND));
+
+        // ★ 토스 승인 요청 직전 CONFIRMING으로 변경 후 커밋
+        orderStatusUpdater.markAsConfirming(order, payment);
+
         // 토스 서버에 최종 승인 요청 (이 시점에 실제 돈이 빠져나감)
         //    트랜잭션 불일치 위험 지점:
         //    토스 승인 성공 후 아래 DB 업데이트가 실패하면 롤백되지만
@@ -272,9 +282,11 @@ public class OrderService {
                 request.getAmount()
         );
 
-        // 승인 성공 → 상태 업데이트
-        Payment payment = paymentRepository.findByOrderId(order.getId())
-                .orElseThrow(() -> new CustomException(ErrorCode.PAYMENT_NOT_FOUND));
+        // ★ 테스트용 — 토스 승인 후 DB 업데이트 전에 강제 예외
+        if (true) {
+            throw new RuntimeException("테스트: 의도적 실패");
+        }
+
 
         // paymentKey 저장 + 상태 PAID로 변경 (Dirty Checking → 자동 UPDATE)
         payment.confirm(request.getPaymentKey());  // paymentKey 저장 + PAID
