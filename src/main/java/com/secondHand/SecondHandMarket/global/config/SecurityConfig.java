@@ -69,7 +69,7 @@ public class SecurityConfig {
                         // 실제 인증은 StompAuthInterceptor에서 CONNECT 시점에 처리
                     .requestMatchers("/ws-chat/**").permitAll()  // WebSocket 엔드포인트
                     .requestMatchers("/api/chat/**").authenticated()
-                    .requestMatchers("/api/admin/**").hasRole("ADMIN")  // 어드민만 접근
+                    .requestMatchers("/api/webhook/**").permitAll()
                     .requestMatchers(
                             "/swagger-ui/**",
                             "/swagger-ui.html",
@@ -77,7 +77,7 @@ public class SecurityConfig {
                     ).permitAll()
                     .anyRequest().authenticated()                       // 나머지는 로그인 필요
                     //.anyRequest().permitAll()  // 개발 초기엔 전부 허용
-                    .requestMatchers("/api/webhook/**").permitAll()
+
             )
                 // JwtFilter를 UsernamePasswordAuthenticationFilter 앞에 등록
                 // 이유: Spring Security 기본 필터(UsernamePasswordAuthenticationFilter)가
