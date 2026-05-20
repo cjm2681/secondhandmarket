@@ -30,10 +30,12 @@ public class ImageService {
 
     private final S3Client s3Client;
 
-    @Value("${cloud.aws.s3.bucket}")
+//    @Value("${cloud.aws.s3.bucket}")
+    @Value("${cloud.aws.s3.bucket:secondhand-market-images}")
     private String bucket;
 
-    @Value("${cloud.aws.region.static}")
+//    @Value("${cloud.aws.region.static}")
+    @Value("${cloud.aws.region.static:ap-northeast-2}")
     private String region;
 
     public List<String> uploadImages(List<MultipartFile> files) {
