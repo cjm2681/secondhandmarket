@@ -13,13 +13,16 @@ public class S3Config {
 
     // @Value: application.yaml의 값을 필드에 주입
     // 실제 키는 환경변수(AWS_ACCESS_KEY, AWS_SECRET_KEY)로 관리 → 코드에 노출 방지
-    @Value("${cloud.aws.credentials.access-key}")
+//    @Value("${cloud.aws.credentials.access-key}")
+    @Value("${AWS_ACCESS_KEY}")
     private String accessKey;
 
-    @Value("${cloud.aws.credentials.secret-key}")
+//    @Value("${cloud.aws.credentials.secret-key}")
+    @Value("${AWS_SECRET_KEY}")
     private String secretKey;
 
-    @Value("${cloud.aws.region.static}")
+//    @Value("${cloud.aws.region.static}")
+    @Value("${cloud.aws.region.static:ap-northeast-2}")
     private String region;   // 버킷이 위치한 리전 (예: ap-northeast-2 = 서울)
 
     @Bean
