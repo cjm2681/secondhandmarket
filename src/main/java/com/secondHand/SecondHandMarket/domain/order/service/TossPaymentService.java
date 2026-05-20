@@ -17,7 +17,9 @@ import java.util.Base64;
 @Slf4j
 public class TossPaymentService {
 
-    @Value("${toss payments.secret-key}")
+//    @Value("${toss payments.secret-key}")
+//    @Value("${TOSS_SECRET_KEY:${toss payments.secret-key:}}")
+    @Value("${TOSS_SECRET_KEY}")
     private String secretKey;
 
     private static final String TOSS_CONFIRM_URL =
